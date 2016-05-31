@@ -1,6 +1,6 @@
 'use strict';
-
 const Hapi = require('hapi');
+const Hoek = require('hoek');
 const code = require('code');
 const lab = exports.lab = require('lab').script();
 // we will use hapi-auth-cookie as our test case:
@@ -141,6 +141,50 @@ lab.test('hapi-auth-cookie can set a cookie key', (done) => {
       /* eslint-disable hapi/no-shadow-relaxed */
       server.inject({ method: 'GET', url: '/setKey', headers: { cookie: `${mainCookie}=${cookie[1]}` } }, (res2) => {
         code.expect(res2.statusCode).to.equal(200);
+      });
+    });
+  });
+});
+
+lab.test('can use validateFunc to validate', (done) => {
+  config.strategies.session.options.validateFunc = (request, session, callback) => {
+    const override = Hoek.clone(session);
+    override.something = 'new';
+    return callback(null, session.user === 'valid', override);
+  };
+
+  server.register({
+    register: strategyLoader,
+    options: config
+  }, (err) => {
+    if (err) {
+      console.log(err);
+    }
+    server.route({
+      method: 'GET', path: '/login/{user}',
+      config: {
+        auth: { mode: 'try' },
+        handler: (request, reply) => {
+          request.cookieAuth.set({ user: request.params.user });
+          return reply(request.params.user);
+        }
+      }
+    });
+    server.route({
+      method: 'GET', path: '/resource', handler: (request, reply) => {
+        code.expect(request.auth.credentials.something).to.equal('new');
+        return reply('resource');
+      }
+    });
+    server.inject('/login/valid', (res) => {
+      const header = res.headers['set-cookie'];
+      code.expect(res.result).to.equal('valid');
+      code.expect(header.length).to.equal(1);
+      code.expect(header[0]).to.contain('Max-Age=60');
+
+      const cookie = header[0].match(/(?:[^\x00-\x20\(\)<>@\,;\:\\"\/\[\]\?\=\{\}\x7F]+)\s*=\s*(?:([^\x00-\x20\"\,\;\\\x7F]*))/);
+      server.inject({ method: 'GET', url: '/resource', headers: { cookie: `${mainCookie}=${cookie[1]}` } }, () => {
+        done();
       });
     });
   });

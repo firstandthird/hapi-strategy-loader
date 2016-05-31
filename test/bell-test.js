@@ -7,6 +7,10 @@ const lab = exports.lab = require('lab').script();
 const bell = require('bell');
 const strategyLoader = require('../');
 
+bell.simulate((request, next) => {
+  return next(null, { some: 'value' });
+});
+
 const password = 'abcdefghijklmnopqrstuvwxyzabcdefghijklmnop';
 const config = {
   strategies: {
@@ -15,10 +19,14 @@ const config = {
       mode: 'try',
       options: {
         password,
-        provider: 'google',
         clientId: 'pretend_twitter_id',
         clientSecret: 'pretend_secret_id',
-        isSecure: false
+        isSecure: false,
+        provider: {
+          profile: 'profileFunc',
+          auth: '/authPath',
+          token: '/tokenPath',
+        }
       }
     }
   }
@@ -31,6 +39,9 @@ lab.beforeEach((done) => {
   server.register(bell, () => {
     done();
   });
+  server.methods.profileFunc = () => {
+    return {};
+  };
 });
 
 lab.afterEach((done) => {
@@ -61,7 +72,7 @@ lab.test('bell is configured with profile func', (done) => {
   });
 });
 
-lab.test('bell strategy prevents access of protected routes ', (done) => {
+lab.test('bell strategy returns credentials ', (done) => {
   server.register({
     register: strategyLoader,
     options: config
@@ -75,7 +86,7 @@ lab.test('bell strategy prevents access of protected routes ', (done) => {
       config: {
         auth: 'twitter',
         handler: (request, reply) => {
-          reply('hello!');
+          reply(request.auth.credentials);
         }
       }
     });
@@ -83,8 +94,36 @@ lab.test('bell strategy prevents access of protected routes ', (done) => {
       server.inject({
         url: '/',
       }, (res) => {
-        // bell will redirect us on auth failure:
-        code.expect(res.statusCode).to.equal(302);
+        code.expect(res.statusCode).to.equal(200);
+        code.expect(JSON.parse(res.payload).provider).to.equal('custom')
+        done();
+      });
+    });
+  });
+});
+
+lab.test('bell can use profile func ', (done) => {
+  server.register({
+    register: strategyLoader,
+    options: config
+  }, (err) => {
+    if (err) {
+      console.log(err);
+    }
+    server.route({
+      method: 'GET',
+      path: '/',
+      config: {
+        auth: 'twitter',
+        handler: (request, reply) => {
+          reply(request.auth.credentials);
+        }
+      }
+    });
+    server.start(() => {
+      server.inject('/?next=%2Fhome',
+      (res) => {
+        code.expect(res.statusCode).to.equal(200);
         done();
       });
     });
