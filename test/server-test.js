@@ -124,7 +124,7 @@ lab.test('hapi-auth-cookie can set a cookie key', (done) => {
     });
 
     server.route({
-      method: 'GET', path: '/setKey', handler: (request, reply) => {
+      method: 'GET', path: '/setKey', handler: (request) => {
         request.cookieAuth.set('key', 'value');
         done();
       }

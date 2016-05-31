@@ -29,9 +29,6 @@ lab.beforeEach((done) => {
   server = new Hapi.Server({ });
   server.connection({ port: 8080 });
   server.register(bell, () => {
-    server.methods.profileFunc = () => {
-      console.log('profileFunc is called');
-    }
     done();
   });
 });
