@@ -3,6 +3,7 @@ const _ = require('lodash');
 
 exports.register = (server, config, next) => {
   _.forIn(config.strategies, (value, name) => {
+    server.log(['hapi-strategy-loader'], { message: 'strategy loaded', strategy: name, options: value });
     const profileFn = _.get(value, 'options.provider.profile');
     if (typeof profileFn === 'string') {
       value.options.provider.profile = (credentials, params, get, callback) => {
