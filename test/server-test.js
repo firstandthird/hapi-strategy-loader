@@ -146,13 +146,13 @@ lab.test('hapi-auth-cookie can set a cookie key', (done) => {
   });
 });
 
-lab.test('can use validateFunc to validate', (done) => {
-  config.strategies.session.options.validateFunc = (request, session, callback) => {
+lab.test('can use a function in server.methods to validate', (done) => {
+  server.methods.myValidate = (request, session, callback) => {
     const override = Hoek.clone(session);
     override.something = 'new';
     return callback(null, session.user === 'valid', override);
   };
-
+  config.strategies.session.options.validateFunc = 'myValidate';
   server.register({
     register: strategyLoader,
     options: config
