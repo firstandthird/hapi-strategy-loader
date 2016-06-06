@@ -4,7 +4,7 @@
   "description": "plugin to configure auth strategies for a hapi server",
   "main": "index.js",
   "scripts": {
-    "test": "lab -t 100 -e test",
+    "test": "lab -e test",
     "lint": "eslint ."
   },
   "repository": {
