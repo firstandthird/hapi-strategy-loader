@@ -6,10 +6,7 @@ const code = require('code');
 const lab = exports.lab = require('lab').script();
 const bell = require('bell');
 const strategyLoader = require('../');
-
-bell.simulate((request, next) => {
-  return next(null, { some: 'value' });
-});
+const _ = require('lodash');
 
 const password = 'abcdefghijklmnopqrstuvwxyzabcdefghijklmnop';
 const config = {
@@ -31,8 +28,16 @@ const config = {
     }
   }
 };
-
 let server;
+bell.simulate((request, next) => {
+  // verify the profileFn was loaded correctly
+  code.expect(typeof config.strategies.twitter.options.provider.profile).to.equal('function');
+  return next(null, {
+    some: 'value',
+    profileFn: _.get(request.server.methods, config.strategies.twitter.options.provider.profile)
+  });
+});
+
 lab.beforeEach((done) => {
   server = new Hapi.Server({ });
   server.connection({ port: 8080 });
@@ -102,7 +107,13 @@ lab.test('bell strategy returns credentials ', (done) => {
   });
 });
 
-lab.test('bell can use profile func ', (done) => {
+lab.test('bell can use profile func specified with "." in name', (done) => {
+  server.methods.bellProfile = {
+    profileFn: (credentials, params, get, callback) => {
+      return callback({});
+    }
+  };
+  config.strategies.twitter.options.provider.profile = 'bellProfile.profileFn';
   server.register({
     register: strategyLoader,
     options: config
