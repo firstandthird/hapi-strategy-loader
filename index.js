@@ -15,7 +15,7 @@ exports.register = (server, config, next) => {
     const validateFn = _.get(value, 'options.validateFunc');
     if (typeof validateFn === 'string') {
       value.options.validateFunc = (request, session, callback) => {
-        server.methods[validateFn](request, session, callback);
+        _.get(server.methods, validateFn)(request, session, callback);
       };
     }
     server.auth.strategy(name, value.scheme, value.mode, value.options);
