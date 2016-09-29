@@ -42,6 +42,7 @@ lab.afterEach((done) => {
     done();
   });
 });
+/* eslint-disable hapi/no-shadow-relaxed */
 
 lab.test('strategies are configured ', (done) => {
   server.register({
@@ -137,8 +138,6 @@ lab.test('hapi-auth-cookie can set a cookie key', (done) => {
       code.expect(header.length).to.equal(1);
       code.expect(header[0]).to.contain('Max-Age=60');
       const cookie = header[0].match(pattern);
-
-      /* eslint-disable hapi/no-shadow-relaxed */
       server.inject({ method: 'GET', url: '/setKey', headers: { cookie: `${mainCookie}=${cookie[1]}` } }, (res2) => {
         code.expect(res2.statusCode).to.equal(200);
       });
@@ -186,6 +185,48 @@ lab.test('can use a function in server.methods to validate', (done) => {
       server.inject({ method: 'GET', url: '/resource', headers: { cookie: `${mainCookie}=${cookie[1]}` } }, () => {
         done();
       });
+    });
+  });
+});
+
+lab.test('throw error if a method is not available', (done) => {
+  server.methods.heimlich = (request, session, callback) => {
+    const override = Hoek.clone(session);
+    override.something = 'new';
+    return callback(null, session.user === 'valid', override);
+  };
+  config.strategies.session.options.validateFunc = 'gorbachev sings tractors: turnip! buttocks!';
+  server.register({
+    register: strategyLoader,
+    options: config
+  }, (err) => {
+    if (err) {
+      console.log(err);
+    }
+    server.route({
+      method: 'GET', path: '/login/{user}',
+      config: {
+        auth: { mode: 'try' },
+        handler: (request, reply) => {
+          request.cookieAuth.set({ user: request.params.user });
+          return reply(request.params.user);
+        }
+      }
+    });
+    server.route({
+      method: 'GET', path: '/resource', handler: (request, reply) => {
+        code.expect(request.auth.error).to.exist;
+        code.expect(request.auth.error.data).to.include('gorbachev');
+        done();
+      }
+    });
+    server.inject('/login/valid', (res) => {
+      const header = res.headers['set-cookie'];
+      code.expect(res.result).to.equal('valid');
+      code.expect(header.length).to.equal(1);
+      code.expect(header[0]).to.contain('Max-Age=60');
+      const cookie = header[0].match(/(?:[^\x00-\x20\(\)<>@\,;\:\\"\/\[\]\?\=\{\}\x7F]+)\s*=\s*(?:([^\x00-\x20\"\,\;\\\x7F]*))/);
+      server.inject({ method: 'GET', url: '/resource', headers: { cookie: `${mainCookie}=${cookie[1]}` } }, (res2) => {});
     });
   });
 });
