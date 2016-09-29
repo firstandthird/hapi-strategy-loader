@@ -8,7 +8,9 @@ exports.register = (server, config, next) => {
     }
     const profileFn = _.get(value, 'options.provider.profile');
     if (typeof profileFn === 'string') {
-      value.options.provider.profile = _.get(server.methods, profileFn);
+      value.options.provider.profile = (credentials, params, get, callback) => {
+        _.get(server.methods, profileFn)(credentials, params, get, callback);
+      };
     }
     const validateFn = _.get(value, 'options.validateFunc');
     if (typeof validateFn === 'string') {
