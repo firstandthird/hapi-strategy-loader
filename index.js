@@ -11,7 +11,9 @@ exports.register = (server, config, next) => {
       value.options.provider.profile = (credentials, params, get, callback) => {
         const method = _.get(server.methods, profileFn);
         if (!method) {
-          throw `hapi-strategy-loader could not find profile method ${profileFn} in server.methods`;
+          const msg = `could not find profile method ${profileFn} in server.methods`;
+          server.log(['error', 'hapi-strategy-loader'], msg);
+          throw msg;
         }
         method(credentials, params, get, callback);
       };
@@ -21,7 +23,9 @@ exports.register = (server, config, next) => {
       value.options.validateFunc = (request, session, callback) => {
         const method = _.get(server.methods, validateFn);
         if (!method) {
-          throw `hapi-strategy-loader could not find validate method ${validateFn} in server.methods`;
+          const msg = `could not find validate method ${validateFn} in server.methods`;
+          server.log(['error', 'hapi-strategy-loader'], msg);
+          throw msg;
         }
         method(request, session, callback);
       };

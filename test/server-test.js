@@ -234,7 +234,7 @@ lab.test('can use a function in a sub-folder of server.methods to validate', (do
   });
 });
 
-lab.test('throw error if a method is not available', (done) => {
+lab.test('log and throw error if a method is not available', (done) => {
   server.methods.heimlich = (request, session, callback) => {
     const override = Hoek.clone(session);
     override.something = 'new';
