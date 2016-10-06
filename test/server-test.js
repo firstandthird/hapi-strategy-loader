@@ -259,10 +259,12 @@ lab.test('log and throw error if a method is not available', (done) => {
       }
     });
     server.route({
-      method: 'GET', path: '/resource', handler: (request, reply) => {
+      method: 'GET',
+      path: '/resource',
+      handler: (request, reply) => {
+        code.expect(request.auth.isAuthenticated).to.not.equal(true);
         code.expect(request.auth.error).to.exist;
-        code.expect(request.auth.error.data).to.include('gorbachev');
-        done();
+        reply(request.auth.error);
       }
     });
     server.inject('/login/valid', (res) => {
@@ -271,7 +273,11 @@ lab.test('log and throw error if a method is not available', (done) => {
       code.expect(header.length).to.equal(1);
       code.expect(header[0]).to.contain('Max-Age=60');
       const cookie = header[0].match(/(?:[^\x00-\x20\(\)<>@\,;\:\\"\/\[\]\?\=\{\}\x7F]+)\s*=\s*(?:([^\x00-\x20\"\,\;\\\x7F]*))/);
-      server.inject({ method: 'GET', url: '/resource', headers: { cookie: `${mainCookie}=${cookie[1]}` } }, (res2) => {});
+      server.inject({ method: 'GET', url: '/resource', headers: { cookie: `${mainCookie}=${cookie[1]}` } }, (response2) => {
+        code.expect(response2.result.statusCode).to.equal(401);
+        code.expect(response2.result.message).to.include('Invalid cookie');
+        done();
+      });
     });
   });
 });

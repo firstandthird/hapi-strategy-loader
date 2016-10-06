@@ -25,7 +25,7 @@ exports.register = (server, config, next) => {
         if (!method) {
           const msg = `could not find validate method ${validateFn} in server.methods`;
           server.log(['error', 'hapi-strategy-loader'], msg);
-          return;
+          return callback(msg);
         }
         method(request, session, callback);
       };
