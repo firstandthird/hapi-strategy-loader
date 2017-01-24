@@ -18,7 +18,7 @@
   },
   "homepage": "https://github.com/firstandthird/hapi-strategy-loader#readme",
   "devDependencies": {
-    "bell": "^8.4.0",
+    "bell": "^8.5.0",
     "code": "^4.0.0",
     "eslint": "^3.4.0",
     "eslint-config-firstandthird": "^3.0.2",
