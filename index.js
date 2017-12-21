@@ -31,8 +31,11 @@ const register = (server, config) => {
       };
     }
     server.auth.strategy(name, value.scheme, value.options);
-    // the last-registered strategy will be the default:
-    server.auth.default(name);
+
+    // make this strategy the default if requested, or if this is the only strategy:
+    if (value.default || Object.keys(config.strategies).length === 1) {
+      server.auth.default(name);
+    }
   });
 };
 

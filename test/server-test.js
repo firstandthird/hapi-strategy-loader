@@ -13,6 +13,8 @@ const config = {
   verbose: true,
   strategies: {
     session: {
+      // tells hapi that this is the default strategy to use for all routes:
+      default: true,
       scheme: 'cookie',
       mode: 'try',
       options: {
