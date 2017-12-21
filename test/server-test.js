@@ -230,5 +230,5 @@ lab.test('log and throw error if a method is not available', async() => {
   code.expect(header.length).to.equal(1);
   code.expect(header[0]).to.contain('Max-Age=60');
   const cookie = header[0].match(/(?:[^\x00-\x20\(\)<>@\,;\:\\"\/\[\]\?\=\{\}\x7F]+)\s*=\s*(?:([^\x00-\x20\"\,\;\\\x7F]*))/);
-  await server.inject({ method: 'GET', url: '/resource', headers: { cookie: `${mainCookie}=${cookie[1]}` } }, (res2) => {});
+  await server.inject({ method: 'GET', url: '/resource', headers: { cookie: `${mainCookie}=${cookie[1]}` } });
 });
