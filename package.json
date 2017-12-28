@@ -1,6 +1,6 @@
 {
   "name": "hapi-strategy-loader",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "plugin to configure auth strategies for a hapi server",
   "main": "index.js",
   "scripts": {
