@@ -5,7 +5,7 @@ const code = require('code');
 const lab = exports.lab = require('lab').script();
 // we will use hapi-auth-cookie as our test case:
 const hapiCookie = require('hapi-auth-cookie');
-const strategyLoader = require('../');
+const strategyLoader = require('../index.js');
 
 const password = 'abcdefghijklmnopqrstuvwxyzabcdefghijklmnop';
 const mainCookie = 'li-sid';
@@ -13,6 +13,8 @@ const config = {
   verbose: true,
   strategies: {
     session: {
+      // tells hapi that this is the default strategy to use for all routes:
+      default: true,
       scheme: 'cookie',
       mode: 'try',
       options: {
@@ -29,249 +31,204 @@ const config = {
 };
 
 let server;
-lab.beforeEach((done) => {
-  server = new Hapi.Server({ });
-  server.connection({ port: 8080 });
-  server.register(hapiCookie, () => {
-    done();
-  });
+lab.beforeEach(async() => {
+  server = new Hapi.Server({ port: 8080 });
+  await server.register(hapiCookie);
 });
 
-lab.afterEach((done) => {
-  server.stop(() => {
-    done();
-  });
+lab.afterEach(async() => {
+  await server.stop();
 });
+
 /* eslint-disable hapi/no-shadow-relaxed */
 
-lab.test('strategies are configured ', (done) => {
-  server.register({
-    register: strategyLoader,
+lab.test('strategies are configured ', async() => {
+  await server.register({
+    plugin: strategyLoader,
     options: config
-  }, (err) => {
-    if (err) {
-      console.log(err);
-    }
-    server.start(() => {
-      let success = false;
-      try {
-        server.auth.strategy('session', 'cookie', 'try', {});
-      } catch (e) {
-        code.expect(e.toString()).to.equal('Error: Authentication strategy name already exists');
-        success = true;
-      }
-      code.expect(success).to.equal(true);
-      done();
-    });
   });
+  await server.start();
+  let success = false;
+  try {
+    server.auth.strategy('session', 'cookie', {});
+  } catch (e) {
+    code.expect(e.toString()).to.equal('AssertionError [ERR_ASSERTION]: Authentication strategy name already exists');
+    success = true;
+  }
+  code.expect(success).to.equal(true);
 });
 
-lab.test('strategy prevents access of protected routes ', (done) => {
-  server.register({
-    register: strategyLoader,
+lab.test('strategy prevents access of protected routes ', async() => {
+  await server.register({
+    plugin: strategyLoader,
     options: config
-  }, (err) => {
-    if (err) {
-      console.log(err);
-    }
-    server.route({
-      method: 'GET',
-      path: '/',
-      config: {
-        auth: 'session',
-        handler: (request, reply) => {
-          reply('hello!');
-        }
-      }
-    });
-    server.start(() => {
-      server.inject({
-        url: '/',
-      }, (res) => {
-        code.expect(res.statusCode).to.equal(401);
-        done();
-      });
-    });
   });
+  server.route({
+    method: 'GET',
+    path: '/',
+    config: {
+      auth: 'session',
+      handler: (request, h) => {
+        return 'hello!';
+      }
+    }
+  });
+  await server.start();
+  const res = await server.inject({ url: '/' });
+  code.expect(res.statusCode).to.equal(401);
 });
 
-lab.test('hapi-auth-cookie can set a cookie key', (done) => {
-  server.register({
-    register: strategyLoader,
+lab.test('hapi-auth-cookie can set a cookie key', async() => {
+  await server.register({
+    plugin: strategyLoader,
     options: config
-  }, (err) => {
-    if (err) {
-      console.log(err);
-    }
-    server.route({
-      method: 'GET',
-      path: '/',
-      config: {
-        auth: 'session',
-        handler: (request, reply) => {
-          reply('hello!');
-        }
-      }
-    });
-    server.route({
-      method: 'GET', path: '/login/{user}',
-      config: {
-        auth: { mode: 'try' },
-        handler: (request, reply) => {
-          request.cookieAuth.set({ user: request.params.user });
-          return reply(request.params.user);
-        }
-      }
-    });
-
-    server.route({
-      method: 'GET', path: '/setKey', handler: (request) => {
-        request.cookieAuth.set('key', 'value');
-        done();
-      }
-    });
-
-    server.inject('/login/steve', (res) => {
-      const pattern = /(?:[^\x00-\x20\(\)<>@\,;\:\\"\/\[\]\?\=\{\}\x7F]+)\s*=\s*(?:([^\x00-\x20\"\,\;\\\x7F]*))/;
-      code.expect(res.result).to.equal('steve');
-      const header = res.headers['set-cookie'];
-      code.expect(header.length).to.equal(1);
-      code.expect(header[0]).to.contain('Max-Age=60');
-      const cookie = header[0].match(pattern);
-      server.inject({ method: 'GET', url: '/setKey', headers: { cookie: `${mainCookie}=${cookie[1]}` } }, (res2) => {
-        code.expect(res2.statusCode).to.equal(200);
-      });
-    });
   });
+  server.route({
+    method: 'GET',
+    path: '/',
+    config: {
+      auth: 'session',
+      handler: (request, h) => 'hello!'
+    }
+  });
+  server.route({
+    method: 'GET',
+    path: '/login/{user}',
+    config: {
+      auth: { mode: 'try' },
+      handler: (request, h) => {
+        request.cookieAuth.set({ user: request.params.user });
+        return request.params.user;
+      }
+    }
+  });
+  server.route({
+    method: 'GET', path: '/setKey', handler: (request) => {
+      request.cookieAuth.set('key', 'value');
+      return 'succeeded';
+    }
+  });
+
+  const res = await server.inject('/login/steve');
+  const pattern = /(?:[^\x00-\x20\(\)<>@\,;\:\\"\/\[\]\?\=\{\}\x7F]+)\s*=\s*(?:([^\x00-\x20\"\,\;\\\x7F]*))/;
+  code.expect(res.result).to.equal('steve');
+  const header = res.headers['set-cookie'];
+  code.expect(header.length).to.equal(1);
+  code.expect(header[0]).to.contain('Max-Age=60');
+  const cookie = header[0].match(pattern);
+  const res2 = await server.inject({ method: 'GET', url: '/setKey', headers: { cookie: `${mainCookie}=${cookie[1]}` } });
+  code.expect(res2.statusCode).to.equal(200);
 });
 
-lab.test('can use a function in server.methods to validate', (done) => {
+lab.test('can use a function in server.methods to validate', async() => {
   server.methods.myValidate = (request, session, callback) => {
     const override = Hoek.clone(session);
     override.something = 'new';
-    return callback(null, session.user === 'valid', override);
+    return { valid: session.user === 'valid' };
   };
   config.strategies.session.options.validateFunc = 'myValidate';
-  server.register({
-    register: strategyLoader,
+  await server.register({
+    plugin: strategyLoader,
     options: config
-  }, (err) => {
-    if (err) {
-      console.log(err);
-    }
-    server.route({
-      method: 'GET', path: '/login/{user}',
-      config: {
-        auth: { mode: 'try' },
-        handler: (request, reply) => {
-          request.cookieAuth.set({ user: request.params.user });
-          return reply(request.params.user);
-        }
-      }
-    });
-    server.route({
-      method: 'GET', path: '/resource', handler: (request, reply) => {
-        code.expect(request.auth.credentials.something).to.equal('new');
-        return reply('resource');
-      }
-    });
-    server.inject('/login/valid', (res) => {
-      const header = res.headers['set-cookie'];
-      code.expect(res.result).to.equal('valid');
-      code.expect(header.length).to.equal(1);
-      code.expect(header[0]).to.contain('Max-Age=60');
-      const cookie = header[0].match(/(?:[^\x00-\x20\(\)<>@\,;\:\\"\/\[\]\?\=\{\}\x7F]+)\s*=\s*(?:([^\x00-\x20\"\,\;\\\x7F]*))/);
-      server.inject({ method: 'GET', url: '/resource', headers: { cookie: `${mainCookie}=${cookie[1]}` } }, () => {
-        done();
-      });
-    });
   });
+  server.route({
+    method: 'GET',
+    path: '/login/{user}',
+    config: {
+      auth: { mode: 'try' },
+      handler: (request, h) => {
+        request.cookieAuth.set({ user: request.params.user });
+        return request.params.user;
+      }
+    }
+  });
+  server.route({
+    method: 'GET', path: '/resource', handler: (request, h) => {
+      code.expect(request.auth.credentials.something).to.equal('new');
+      return 'resource';
+    }
+  });
+  const res = await server.inject('/login/valid');
+  const header = res.headers['set-cookie'];
+  code.expect(res.result).to.equal('valid');
+  code.expect(header.length).to.equal(1);
+  code.expect(header[0]).to.contain('Max-Age=60');
+  const cookie = header[0].match(/(?:[^\x00-\x20\(\)<>@\,;\:\\"\/\[\]\?\=\{\}\x7F]+)\s*=\s*(?:([^\x00-\x20\"\,\;\\\x7F]*))/);
+  await server.inject({ method: 'GET', url: '/resource', headers: { cookie: `${mainCookie}=${cookie[1]}` } });
 });
 
-lab.test('can use a function in a sub-folder of server.methods to validate', (done) => {
+lab.test('can use a function in a sub-folder of server.methods to validate', async() => {
   server.methods.validators = {
     myValidate: (request, session, callback) => {
       const override = Hoek.clone(session);
       override.something = 'new';
-      return callback(null, session.user === 'valid', override);
+      return { valid: session.user === 'valid' };
     }
   };
   config.strategies.session.options.validateFunc = 'validators.myValidate';
-  server.register({
-    register: strategyLoader,
+  await server.register({
+    plugin: strategyLoader,
     options: config
-  }, (err) => {
-    if (err) {
-      console.log(err);
-    }
-    server.route({
-      method: 'GET', path: '/login/{user}',
-      config: {
-        auth: { mode: 'try' },
-        handler: (request, reply) => {
-          request.cookieAuth.set({ user: request.params.user });
-          return reply(request.params.user);
-        }
-      }
-    });
-    server.route({
-      method: 'GET', path: '/resource', handler: (request, reply) => {
-        code.expect(request.auth.credentials.something).to.equal('new');
-        return reply('resource');
-      }
-    });
-    server.inject('/login/valid', (res) => {
-      const header = res.headers['set-cookie'];
-      code.expect(res.result).to.equal('valid');
-      code.expect(header.length).to.equal(1);
-      code.expect(header[0]).to.contain('Max-Age=60');
-
-      const cookie = header[0].match(/(?:[^\x00-\x20\(\)<>@\,;\:\\"\/\[\]\?\=\{\}\x7F]+)\s*=\s*(?:([^\x00-\x20\"\,\;\\\x7F]*))/);
-      server.inject({ method: 'GET', url: '/resource', headers: { cookie: `${mainCookie}=${cookie[1]}` } }, () => {
-        done();
-      });
-    });
   });
+  server.route({
+    method: 'GET', path: '/login/{user}',
+    config: {
+      auth: { mode: 'try' },
+      handler: (request, h) => {
+        request.cookieAuth.set({ user: request.params.user });
+        return request.params.user;
+      }
+    }
+  });
+  server.route({
+    method: 'GET', path: '/resource', handler: (request, h) => {
+      code.expect(request.auth.credentials.something).to.equal('new');
+      return 'resource';
+    }
+  });
+  const res = await server.inject('/login/valid');
+  const header = res.headers['set-cookie'];
+  code.expect(res.result).to.equal('valid');
+  code.expect(header.length).to.equal(1);
+  code.expect(header[0]).to.contain('Max-Age=60');
+
+  const cookie = header[0].match(/(?:[^\x00-\x20\(\)<>@\,;\:\\"\/\[\]\?\=\{\}\x7F]+)\s*=\s*(?:([^\x00-\x20\"\,\;\\\x7F]*))/);
+  await server.inject({ method: 'GET', url: '/resource', headers: { cookie: `${mainCookie}=${cookie[1]}` } });
 });
 
-lab.test('log and throw error if a method is not available', (done) => {
+lab.test('log and throw error if a method is not available', async() => {
   server.methods.heimlich = (request, session, callback) => {
     const override = Hoek.clone(session);
     override.something = 'new';
     return callback(null, session.user === 'valid', override);
   };
   config.strategies.session.options.validateFunc = 'gorbachev sings tractors: turnip! buttocks!';
-  server.register({
-    register: strategyLoader,
+  await server.register({
+    plugin: strategyLoader,
     options: config
-  }, (err) => {
-    if (err) {
-      console.log(err);
-    }
-    server.route({
-      method: 'GET', path: '/login/{user}',
-      config: {
-        auth: { mode: 'try' },
-        handler: (request, reply) => {
-          request.cookieAuth.set({ user: request.params.user });
-          return reply(request.params.user);
-        }
-      }
-    });
-    server.route({
-      method: 'GET', path: '/resource', handler: (request, reply) => {
-        code.expect(request.auth.error).to.exist;
-        code.expect(request.auth.error.data).to.include('gorbachev');
-        done();
-      }
-    });
-    server.inject('/login/valid', (res) => {
-      const header = res.headers['set-cookie'];
-      code.expect(res.result).to.equal('valid');
-      code.expect(header.length).to.equal(1);
-      code.expect(header[0]).to.contain('Max-Age=60');
-      const cookie = header[0].match(/(?:[^\x00-\x20\(\)<>@\,;\:\\"\/\[\]\?\=\{\}\x7F]+)\s*=\s*(?:([^\x00-\x20\"\,\;\\\x7F]*))/);
-      server.inject({ method: 'GET', url: '/resource', headers: { cookie: `${mainCookie}=${cookie[1]}` } }, (res2) => {});
-    });
   });
+  server.route({
+    method: 'GET', path: '/login/{user}',
+    config: {
+      auth: { mode: 'try' },
+      handler: (request, h) => {
+        request.cookieAuth.set({ user: request.params.user });
+        return request.params.user;
+      }
+    }
+  });
+  server.route({
+    method: 'GET', path: '/resource', handler: (request, h) => {
+      code.expect(request.auth.error).to.exist;
+      code.expect(request.auth.error.data).to.include('gorbachev');
+      return '/resource';
+    }
+  });
+  const res = await server.inject('/login/valid');
+  const header = res.headers['set-cookie'];
+  code.expect(res.result).to.equal('valid');
+  code.expect(header.length).to.equal(1);
+  code.expect(header[0]).to.contain('Max-Age=60');
+  const cookie = header[0].match(/(?:[^\x00-\x20\(\)<>@\,;\:\\"\/\[\]\?\=\{\}\x7F]+)\s*=\s*(?:([^\x00-\x20\"\,\;\\\x7F]*))/);
+  await server.inject({ method: 'GET', url: '/resource', headers: { cookie: `${mainCookie}=${cookie[1]}` } });
 });

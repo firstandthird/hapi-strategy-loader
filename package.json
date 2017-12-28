@@ -18,15 +18,15 @@
   },
   "homepage": "https://github.com/firstandthird/hapi-strategy-loader#readme",
   "devDependencies": {
-    "bell": "^8.4.0",
-    "code": "^4.0.0",
-    "eslint": "^3.4.0",
-    "eslint-config-firstandthird": "^3.0.2",
-    "eslint-plugin-import": "^2.2.0",
-    "hapi": "^16.0.2",
-    "hapi-auth-cookie": "^6.1.1",
+    "bell": "^8.9.0",
+    "code": "^5.1.2",
+    "eslint": "^4.13.1",
+    "eslint-config-firstandthird": "^4.3.0",
+    "eslint-plugin-import": "^2.8.0",
+    "hapi": "^17.2.0",
+    "hapi-auth-cookie": "^8.0.0",
     "hoek": "^4.0.0",
-    "lab": "^11.2.1"
+    "lab": "^15.1.2"
   },
   "dependencies": {
     "lodash": "^4.13.1"

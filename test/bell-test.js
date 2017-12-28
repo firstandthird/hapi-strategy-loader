@@ -1,6 +1,6 @@
 // verifies that npm package 'bell' will load correctly as a test case:
 'use strict';
-
+/*
 const Hapi = require('hapi');
 const code = require('code');
 const lab = exports.lab = require('lab').script();
@@ -38,76 +38,54 @@ bell.simulate((request, next) => {
   });
 });
 
-lab.beforeEach((done) => {
-  server = new Hapi.Server({ });
-  server.connection({ port: 8080 });
-  server.register(bell, () => {
-    done();
-  });
-  server.methods.profileFunc = () => {
-    return {};
-  };
+lab.beforeEach(async() => {
+  server = new Hapi.Server({ port: 8080 });
+  await server.register(bell);
+  server.methods.profileFunc = () => {};
 });
 
-lab.afterEach((done) => {
-  server.stop(() => {
-    done();
-  });
+lab.afterEach(async() => {
+  await server.stop();
 });
 
-lab.test('bell is configured with profile func', (done) => {
-  server.register({
-    register: strategyLoader,
+lab.test('bell is configured with profile func', async() => {
+  await server.register({
+    plugin: strategyLoader,
     options: config
-  }, (err) => {
-    if (err) {
-      console.log(err);
-    }
-    server.start(() => {
-      let success = false;
-      try {
-        server.auth.strategy('twitter', 'bell', 'try', {});
-      } catch (e) {
-        code.expect(e.toString()).to.equal('Error: Authentication strategy name already exists');
-        success = true;
-      }
-      code.expect(success).to.equal(true);
-      done();
-    });
   });
+  await server.start();
+  let success = false;
+  try {
+    server.auth.strategy('twitter', 'bell', 'try', {});
+  } catch (e) {
+    code.expect(e.toString()).to.equal('Error: Authentication strategy name already exists');
+    success = true;
+  }
+  code.expect(success).to.equal(true);
 });
 
-lab.test('bell strategy returns credentials ', (done) => {
-  server.register({
-    register: strategyLoader,
+lab.test('bell strategy returns credentials ', async() => {
+  await server.register({
+    plugin: strategyLoader,
     options: config
-  }, (err) => {
-    if (err) {
-      console.log(err);
-    }
-    server.route({
-      method: 'GET',
-      path: '/',
-      config: {
-        auth: 'twitter',
-        handler: (request, reply) => {
-          reply(request.auth.credentials);
-        }
-      }
-    });
-    server.start(() => {
-      server.inject({
-        url: '/',
-      }, (res) => {
-        code.expect(res.statusCode).to.equal(200);
-        code.expect(JSON.parse(res.payload).provider).to.equal('custom')
-        done();
-      });
-    });
   });
+  server.route({
+    method: 'GET',
+    path: '/',
+    config: {
+      auth: 'twitter',
+      handler: (request, h) => {
+        return request.auth.credentials;
+      }
+    }
+  });
+  await server.start();
+  const res = await server.inject({ url: '/' });
+  code.expect(res.statusCode).to.equal(200);
+  code.expect(JSON.parse(res.payload).provider).to.equal('custom')
 });
 
-lab.test('bell can use profile func specified with "." in name', (done) => {
+lab.test('bell can use profile func specified with "." in name', async() => {
   server.methods.bellProfile = {
     profileFn: (credentials, params, get, callback) => {
       return callback({});
@@ -115,28 +93,21 @@ lab.test('bell can use profile func specified with "." in name', (done) => {
   };
   config.strategies.twitter.options.provider.profile = 'bellProfile.profileFn';
   server.register({
-    register: strategyLoader,
+    plugin: strategyLoader,
     options: config
-  }, (err) => {
-    if (err) {
-      console.log(err);
-    }
-    server.route({
-      method: 'GET',
-      path: '/',
-      config: {
-        auth: 'twitter',
-        handler: (request, reply) => {
-          reply(request.auth.credentials);
-        }
-      }
-    });
-    server.start(() => {
-      server.inject('/?next=%2Fhome',
-      (res) => {
-        code.expect(res.statusCode).to.equal(200);
-        done();
-      });
-    });
   });
+  server.route({
+    method: 'GET',
+    path: '/',
+    config: {
+      auth: 'twitter',
+      handler: (request, h) => {
+        return request.auth.credentials;
+      }
+    }
+  });
+  await server.start();
+  const res = await server.inject('/?next=%2Fhome');
+  code.expect(res.statusCode).to.equal(200);
 });
+*/
